@@ -31,29 +31,63 @@
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-gruvbox)
+;; (setq doom-theme 'light-blue-theme)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
+;;
+;;
+;; prev: forget-me-not, doom-acario-light
+(setq doom-theme 'doom-ayu-light)
 (setq display-line-numbers-type 'relative)
 
 ;; PATH for latex support
 (setenv "PATH" (concat ":/Library/TeX/texbin/" (getenv "PATH")))
 (add-to-list 'exec-path "/Library/TeX/texbin/")
 
+;; custom startup page
+(setq initial-buffer-choice "~/.config/doom/start.org")
+
+(add-hook! 'emacs-startup-hook
+  (setq default-directory "~/notes/2024-2025/"))
+
+
+(define-minor-mode start-mode
+  "Provide functions for custom start page."
+  :lighter " start"
+  :keymap (let ((map (make-sparse-keymap)))
+            ;;(define-key map (kbd "M-z") 'eshell)
+            (evil-define-key 'normal start-mode-map
+              (kbd "n") '(lambda () (interactive) (projectile-switch-project "~/notes/2024-2025"))
+              (kbd "1") '(lambda () (interactive) (find-file "~/notes/2024-2025/refile.org"))
+              (kbd "2") '(lambda () (interactive) (find-file "~/.config/doom/config.el"))
+              (kbd "3") '(lambda () (interactive) (find-file "~/.config/doom/init.el"))
+              (kbd "4") '(lambda () (interactive) (find-file "~/.config/doom/packages.el"))
+              )
+            map))
+
+(add-hook 'start-mode-hook 'read-only-mode) ;; make start.org read-only; use 'SPC t r' to toggle off read-only.
+(provide 'start-mode)
+
+;; (setq mac-right-command-modifier 'meta)
 
 
 ;; org initial settings
 (setq org-directory "~/notes/2024-2025/"
       org-agenda-files (directory-files-recursively "~/notes/" "\\.org$"
-
-                                                    )
-
-      )
+                                                    ))
 (setq org-default-notes-file (concat org-directory "/refile.org"))
+(setq org-roam-directory "~/notes/2024-2025/")
+
+
 
 ;; org customization
 (after! org
+
+
+
+
+  (setq org-image-actual-width '(160))
 
   ;; super agenda (useless)
   (use-package! org-super-agenda
@@ -65,25 +99,32 @@
 
 
   (setq org-capture-templates
-        '(("t" "Todo" entry (file+headline "refile.org" "Tasks")
+        '(("t" "Todo" entry (file "refile.org")
            "* TODO %?\n  %i\n  %a")
 
-          ("n" "Note" entry (file+headline "refile.org" "Notes")
+          ("T" "Todo Daily" entry (file+headline "refile.org" "Daily")
+           "* NEXT %?\nSCHEDULED: %^t\n%i\n%a")
+
+
+          ("n" "Next" entry (file "refile.org")
+           "* NEXT %?\nSCHEDULED: %^t\n%i\n%a")
+
+          ("N" "Note" entry (file "refile.org")
            "* %?\n %i\n")
 
-          ("d" "Data" entry (file+headline "lists.org" "Datas")
-           "* %?\n  ")
-
-
           ("j" "Journal" entry (file+datetree "journal.org")
-           "* %?\nEntered on %U\n  %i\n  %a")))
+           "* %?\nEntered on %U\n  %i\n  %a")
 
+          ("p" "Protocol" entry (file+headline "refile.org" "Reading list")
+           "* TODO %?\n[[%:link][%:description]]\n #+BEGIN_QUOTE\n%i\n#+END_QUOTE\n")
+          ("L" "Protocol Link" entry (file+headline "refile.org" "Reading list")
+           "* TODO %?\n[[%:link][%:description]]")
+
+          ))
   (use-package! org-habit )
   (setq
    org-habit-show-all-today t)
 
-  (setq org-todo-keywords
-        '((sequence "TODO(t)" "NEXT(n)" "PROG(p)" "INTR(i)" "DONE(d)")))
 
   ;; Hide tasks that are scheduled in the future.
   ;; (setq org-agenda-todo-ignore-scheduled 'future)
@@ -94,12 +135,13 @@
 
   ;; Hide the deadline prewarning prior to scheduled date.
   (setq org-agenda-skip-deadline-prewarning-if-scheduled 'pre-scheduled)
-  ;;
   (setq org-agenda-skip-scheduled-if-done t)
-  ;;
   (setq org-agenda-start-day nil)
   (setq org-agenda-start-on-weekday 1)
   (setq org-agenda-span 7)
+
+  (setq org-todo-keywords
+        '((sequence "TODO(t)" "NEXT(n)" "PROG(p)" "INTR(i)" "DONE(d)" )))
 
   (setq org-agenda-sorting-strategy
         '((agenda time-up priority-down category-keep)
@@ -111,14 +153,17 @@
   (setq org-todo-keyword-faces
         '(("PROG" . (:foreground "yellow" :weight bold))
           ("INTR" . (:foreground "red" :weight bold))
-
           ))
 
   (setq org-agenda-custom-commands
         '(("n" "My Weekly Agenda"
            ((agenda "" nil)
             (todo "INTR" nil)
-            (todo "PROG" nil))
+            (todo "PROG" nil)
+            (todo "NEXT"
+                  ((org-agenda-skip-function
+                    '(org-agenda-skip-entry-if 'scheduled 'deadline))))
+            )
            nil)
           ("t" "TODOS"
            (
@@ -199,7 +244,10 @@
 ;;
 ;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
 ;; they are implemented.
+;;
+(add-to-list 'treesit-extra-load-path (expand-file-name "~/.config/emacs/tree-sitter/"))
 
+(setq lsp-volar-take-over-mode nil)
 (after! lsp-mode
   (setq  lsp-go-analyses '((fieldalignment . t)
                            (nilness . t)
